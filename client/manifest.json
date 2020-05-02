@@ -31,5 +31,8 @@
     "matches": ["https://*.youtube.com/watch?*"],
     "js": ["content_script.js"],
     "run_at": "document_idle"
-  }]
+  }],
+  "web_accessible_resources": [
+        "css/uikit.min.css"
+    ]
 }
