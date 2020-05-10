@@ -21,18 +21,19 @@
   },
   "permissions": [
     "identity",
-    "tabs",
+    "activeTab",
     "declarativeContent",
     "webNavigation",
     "https://*.youtube.com/*",
     "storage"
   ],
   "content_scripts": [{
-    "matches": ["https://*.youtube.com/watch?*"],
+    "matches": ["https://*.youtube.com/*"],
+    "css": ["css/chat.css"],
     "js": ["content_script.js"],
     "run_at": "document_idle"
   }],
   "web_accessible_resources": [
-        "css/uikit.min.css"
+        "img/partylogo32.png"
     ]
 }

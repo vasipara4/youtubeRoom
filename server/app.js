@@ -22,24 +22,38 @@ socket = io(http);
 
 //setup event listener
 socket.on("connection", (socket) => {
+  var name = "User";
+  socket.player = name;
   console.log(`user ${socket.id} connected`);
 
+  socket.on("changeUsername", (data) => {
+    socket.player = data.username;
+  });
 
-  socket.on("disconnect", function() {
+  socket.on("disconnect", function () {
     console.log("user disconnected");
   });
 
   //joining a room
-  socket.on("room", (room) => {
-    socket.join(room.id);
+  socket.on("room", (data) => {
+    socket.join(data.id, () => {
+      let rooms = Object.keys(socket.rooms);
+      console.log(rooms); // [ <socket.id>, 'room 237' ]
+    });
+  });
+
+  // DISCONNECT from room
+  socket.on("leave", (data) => {
+    socket.leave(data.room, () => {
+      socket.to(data.room).emit("leftRoom", {
+        message: `${socket.player} has left the room`,
+      });
+    });
   });
 
   //Someone is typing
-  socket.on("typing", data => {
-    socket.broadcast.to(data.id).emit("notifyTyping", {
-      user: data.user,
-      message: data.message
-    });
+  socket.on("typing", (data) => {
+    socket.broadcast.to(data.id).emit("notifyTyping");
   });
 
   //when soemone stops typing
@@ -47,43 +61,40 @@ socket.on("connection", (socket) => {
     socket.broadcast.to(data.id).emit("notifyStopTyping");
   });
 
-  socket.on("play", function(data) {
+  // Play Event on Party
+  socket.on("play", function (data) {
     console.log("play event");
-    console.log(data);
     socket.broadcast.to(data.id).emit("play", {
-      message: data.message
+      message: data.message,
+      time: data.time
     });
   });
 
-  socket.on("pause", function(data) {
-    console.log("paused "+socket.id);
+  // Pause event on Party
+  socket.on("pause", function (data) {
+    console.log("paused " + socket.id);
     socket.broadcast.to(data.id).emit("pause", {
-      message: data
+      message: data.message,
+      time: data.time
     });
-
   });
 
-  socket.on("buffering", function(msg) {});
+  socket.on("buffering", function (msg) {});
 
-  socket.on("next", function(msg) {});
+  socket.on("next", function (msg) {});
 
-  socket.on("roundtrip", function (msg) {
-
-  });
-
+  socket.on("roundtrip", function (msg) {});
 
   // when someone send a message
-  socket.on("chat message", function(data) {
-    console.log("message: " + data);
-
+  socket.on("chat message", function (data) {
     //broadcast message to everyone in port:5000 except yourself.
     socket.broadcast.to(data.id).emit("received", {
-      message: data
+      message: data.message,
+      name: data.name,
     });
-
-
   });
 });
+
 
 http.listen(port, () => {
   console.log("Running on Port: " + port);

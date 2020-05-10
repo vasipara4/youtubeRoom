@@ -54,3 +54,10 @@ width: 75px;
  .tooltiptext {
   visibility: visible;
 }
+
+.link {
+  height: 15vh;
+  align-items: baseline;
+    display: flex;
+    flex-direction: row;
+}

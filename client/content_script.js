@@ -1,5 +1,11 @@
 // TODO: Organize the code with sections
 // TODO: modify video player
+let urlLocation;
+urlLocation = window.location;
+window.onpopstate = function(event) {
+  urlLocation = window.location;
+  console.log(urlLocation);
+};
 
 
 
@@ -27,17 +33,23 @@ var h,f,l,d=String.fromCharCode;t.exports={version:"2.1.2",encode:a,decode:p}},f
 //# sourceMappingURL=socket.io.js.map
 
 
+
+
 //____________________________
 // Variables
 //____________________________
 //
 const $ = jQuery;
-const urlSessionIdLength = 32;
-const urlSession = "&youtubeSyncvideo=";
-let socketID;
-let roomID;
+const urlSessionKeyLength = 8;
+const urlSession = "&youtubeParty=";
+const youtubeWatchIdUrl = 11;
 let chat_enabled = true;
 let initialized = true;
+let joinedRoom = false;
+let video;
+var socket;
+
+
 
 
 //____________________________
@@ -45,15 +57,6 @@ let initialized = true;
 //____________________________
 //
 
-
-/**
- * timestamp of an event
- * @return {date} milliseconds
- */
-function timestamp() {
-  var date = new Date()
-  return date;
-}
 
 
 // dec to hex
@@ -63,8 +66,8 @@ function dec2hex(dec) {
 
 
 // generateId :: Integer -> String
-function generateSessionId(sessionIdLength) {
-  var arr = new Uint8Array(sessionIdLength / 2)
+function generateSessionKey(length) {
+  var arr = new Uint8Array(length / 2)
   window.crypto.getRandomValues(arr)
   return Array.from(arr, dec2hex).join('')
 }
@@ -83,7 +86,7 @@ var injectScript = function(script) {
 
 // Checking URL rules
 //of the window
-function checkURL(rule) {
+function checkYoutubeURL(rule) {
   var x = location.href;
   if (x.search(rule) != -1 && x.search("youtube.com/watch") != -1)
     return false;
@@ -91,23 +94,181 @@ function checkURL(rule) {
     return true;
 }
 
-//____________________________
-// Youtube Player consts
-//____________________________
-//
 
-let video;
+function saveRoomId(user, uniqueKey) {
+
+}
+
+function shareRoomId(user, uniqueKey) {
+  var share = urlSession + user + uniqueKey;
+  return share;
+}
 
 
-const videoEvents = ["loadstart", "canplaythrough", "play", "pause"];
+
 
 
 //____________________________
 // Socket session
 //____________________________
 //
+var userId;
+socket = io.connect('http://localhost:5000');
+socket.on('connect', () => {
+    userId = socket.id;
+    console.log(userId);
+ });
+let sessionKey;
+let roomId;
 
-var socket = io.connect('http://localhost:5000');
+
+/*
+    roomId: Getting its value
+            or Setting it if it's null
+ */
+chrome.storage.local.get(["roomId"], function (result) {
+  if (result.roomId == null) {
+    roomdId = 0;
+    chrome.storage.local.set({ roomId: 0 }, () => {});
+  } else roomId = result.roomId;
+});
+
+
+/*
+    Socket Chat Events
+ */
+
+function socketChatEvents() {
+
+
+    socket.on("received", (data) => {
+      chatAddMessage(data.message, data.name);
+    });
+
+    socket.on("notifyTyping", () => {
+      someoneIsTypingElement(true);
+    });
+    socket.on("notifyStopTyping", () => {
+      someoneIsTypingElement(false);
+    });
+    socket.on("leftRoom", (data) => {
+      // TODO: data.message
+      // has left the room !
+    });
+}
+
+//____________________________
+// Chat CODE
+//____________________________
+//
+
+const person = { me: 0, someone: 1, socket: 2 };
+let generatedChat = false;
+
+function scorllLastMessage(){
+  var chatLog = jQuery("#chatLog");
+  var scrollHeight = document.getElementById("chatLog").scrollHeight;
+  chatLog.animate({ scrollTop: scrollHeight }, "fast");
+}
+
+function someoneIsTypingElement(display) {
+  var element = document.getElementById("typingChat");
+  if (display) {
+    element.style.display = 'block';
+  }
+  else {
+    element.style.display = 'none';
+  }
+}
+
+
+function insertMessage(messageSent, classAdded, who) {
+  var message = messageSent;
+  var classCSS = classAdded;
+  var name = who;
+  var template = `<div class="chat-message${classCSS} messageParty"><div class="chat-user">${name}</div><div class="chat-message__text${classCSS}">${message}</div></div>`;
+ return template;
+}
+
+function chatAddMessage(messageSent, whoSent) {
+  var message = messageSent;
+  var who = whoSent;
+  var chatLog = document.getElementById("chatLog");
+  if (who === person.me) {
+    chatLog.insertAdjacentHTML(
+      "beforeend",
+      insertMessage(message, "--right", "Me")
+    );
+    jQuery("#inputMessage").val("");
+  } else if (who === person.socket) {
+    chatLog.insertAdjacentHTML(
+      "beforeend",
+      insertMessage(message, "", "Info Bot")
+    );
+  } else {
+    chatLog.insertAdjacentHTML(
+      "beforeend",
+      insertMessage(message, "", whoSent)
+    );
+  }
+  scorllLastMessage();
+}
+
+function generateChat() {
+  if (!generatedChat) {
+    generatedChat = true;
+    var elementParent = document.getElementById("secondary-inner");
+
+    // Get Logo URL
+    var imgURL = chrome.runtime.getURL("img/partylogo32.png");
+
+    /*
+      Html Section `Chat` to be Generated
+     */
+    var youtubePartyHeader = `<div id="extensionPartyTitle" class="extension-party"><img src="${imgURL}" alt="">&nbsp;YouTube Party Chat</div>`;
+    var sectionOpening =
+      '<section id="partyChatSection" class="chat-container_extension"><div id="chatLog" class="chat-log"></div>';
+    var inputs =
+      '<div class="chat-input-area"><div id="typingChat" class="chat-input-typing" style="display:none">Someone is typing...</div><input id="inputMessage" type="text" placeholder="Send a message"></div></section>';
+    var chatTemplate = youtubePartyHeader + sectionOpening + inputs;
+
+    // inject Chat's html
+    elementParent.insertAdjacentHTML("afterbegin", chatTemplate);
+
+
+    var messageElement = jQuery("#inputMessage");
+
+    // Event on Keypress
+    messageElement.on("keypress", function (e) {
+      var message = messageElement.val();
+      if (e.which == 13 && message.length > 0) {
+        socket.emit("chat message", {
+          message: message,
+          id: roomId,
+          name: "Test",
+        });
+        chatAddMessage(message, person.me);
+      } else if (message.length > 0) socket.emit("typing", { id: roomId });
+    //  else if (message.length == 0) socket.emit("stopTyping", { id: roomId });
+    });
+
+
+    // Event on Key Up
+    messageElement.keyup(function () {
+      if (messageElement.val() == "")
+      socket.emit("stopTyping", { id: roomId });
+
+    });
+  }
+}
+
+
+function removeChat() {
+  $("#extensionPartyTitle").remove();
+  $("#partyChatSection").remove();
+  generatedChat = false;
+}
+
 
 
 
@@ -117,20 +278,87 @@ var socket = io.connect('http://localhost:5000');
 //
 
 
+//
+//Messages from popup.js
+//Creating the chat
+//
 
-chrome.runtime.onConnect.addListener((port) => {
-  port.onMessage.addListener((request) => {
-    if (request.message == "generateCode" && checkURL(url_rule1)) {
-      //   chrome.tabs.update(request.tabID, {
-      //     url: tabURL + +"&u2syncvideo=" + generateId()
-      //   }, function() {});
-      generateURLocationHREF();
-    } else if (request.message == "socketConnecting") {
-      socket.on('connect', function() {});
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  sessionKey = generateSessionKey(urlSessionKeyLength);
+  if (request.initializeRoom == "on") {
+    if (userId == undefined) {
+      socket = io.connect("http://localhost:5000");
+      socket.on("connect", () => {
+        userId = socket.id;
+        var generatedURL = request.url + shareRoomId(userId, sessionKey);
+        generateChat();
+        App();
+        roomId = userId + sessionKey;
+        chrome.storage.local.set({ roomId: roomId });
+        chrome.storage.local.set({ roomUrl: generatedURL });
+        socket.emit("room", { id: roomId });
+        sendResponse({
+          url: generatedURL,
+        });
+      });
+    } else {
+      var generatedURL = request.url + shareRoomId(userId, sessionKey);
+      generateChat();
+      App();
+      roomId = userId + sessionKey;
+      chrome.storage.local.set({ roomId: roomId });
+      chrome.storage.local.set({ roomUrl: generatedURL });
+      socket.emit("room", { id: roomId });
+      sendResponse({
+        url: generatedURL,
+      });
     }
+  } else if (request.joinRoom == "on" && !joinedRoom) {
+    console.log("Joined Room");
+    console.log(request.roomId);
+    socket.emit("room", { id: request.roomId });
+    chrome.storage.local.get(["roomId"], function (result) {
+      roomId = result.roomId;
+      generateChat();
+      App();
+      joinedRoom = true;
+    });
 
-  });
+  } else if (request.disconnect == "on") {
+    removeChat();
+    joinedRoom = false;
+    chrome.storage.local.get(["roomId"], function (result) {
+      socket.emit("leave", { room: result.roomId });
+      chrome.storage.local.set(
+        {
+          roomId: 0,
+          roomUrl: 0,
+        },
+        () => {}
+      );
+    });
+  }
 });
+
+
+
+
+
+// chrome.runtime.onConnect.addListener((port) => {
+//   port.onMessage.addListener((request) => {
+//     if (request.message == "generateCode" && checkURL(url_rule1)) {
+//       //   chrome.tabs.update(request.tabID, {
+//       //     url: tabURL + +"&u2syncvideo=" + generateId()
+//       //   }, function() {});
+//       generateURLocationHREF();
+//     } else if (request.message == "socketConnecting") {
+//       socket.on('connect', function() {});
+//     }
+//
+//   });
+// });
+//
+//
 
 
 
@@ -142,7 +370,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
 function getID(urlSession, urlSessionIdLength, urlUserID) {
   var selectorSession = urlSession;
-  var id_length = sessionIdLength;
+  var id_length = urlSessionIdLength;
   var x = location.href;
   if (x.indexOf(urlSession)) {
     var index = x.indexOf(urlSession) + urlSessionIdLength;
@@ -154,82 +382,83 @@ function getID(urlSession, urlSessionIdLength, urlUserID) {
 }
 
 
-// App Function
-(function() {
+function videoEvents(video_player) {
+  /*
+      Socket Video Events
+   */
 
-  if (getID() != -1) {
-    roomID = getID();
-    socket.emit("room", {
-      id: roomID
-    });
-  }
-
-  
-
-
-  video = document.querySelector('video');
-  console.log(video);
-
-  socket.on('pause', (data) => {
-    // chatroom.append("<p class='message'>" + data.username + ": " + data.message + "</p>")
-    video.pause();
-  });
-  socket.on('play', (data) => {
-    // chatroom.append("<p class='message'>" + data.username + ": " + data.message + "</p>")
-    console.log(data);
-    video.currentTime = data.message;
-    video.play();
+  socket.on("pause", (data) => {
+    video_player.pause();
   });
 
+  socket.on("play", (data) => {
+    var time = Date.now();
+    var diff = time - data.time;
+    console.log("The diff is: " + diff);
+    console.log("Data message -> current Time: " + data.message);
+    video_player.currentTime = data.message + diff / 1000.0;
+    video_player.play();
+  });
 
   // The play event is fired when the paused property is changed from true to false,
   // as a result of the play method, or the autoplay attribute
-  video.addEventListener('play', (event) => {
-    var currentTime = video.currentTime;
-    // console.log(this.event);
-    // console.log('The Boolean paused property is now false. Either the ' +
-    //   'play() method was called or the autoplay attribute was toggled.');
+  video_player.addEventListener("play", (e) => {
+    console.log(e);
+    var currentTime = video_player.currentTime;
     console.log("Playing at: " + currentTime);
     socket.emit("play", {
-      message: currentTime
+      message: currentTime,
+      id: roomId,
+      time: Date.now(),
     });
-
   });
-
 
   //The pause event is sent when a request to pause an activity is handled and the activity has entered its paused state,
   // most commonly after the media has been paused through a call to the element's pause() method.
   // The event is sent once the pause() method returns and after the media element's paused property has been changed to true.
-  video.addEventListener('pause', (event) => {
-    console.log(this.event);
+  video_player.addEventListener("pause", (e) => {
     socket.emit("pause", {
-      message: "pause"
+      message: "pause",
+      id: roomId,
+      time: Date.now(),
     });
-    console.log('The Boolean paused property is now true. Either the ' +
-      'pause() method was called or the autoplay attribute was toggled.');
+    console.log("pause event");
   });
 
-
-
-  // The canplaythrough event is fired when the user agent can play the media,
-  // and estimates that enough data has been loaded to play the media up to its end
-  // without having to stop for further buffering of content.
-  video.addEventListener('canplaythrough', (event) => {
-    console.log(this.event);
-    console.log('I think I can play through the entire video without ever having to stop to buffer.');
+  video_player.addEventListener("canplaythrough", (event) => {
+    //  video_player.play();
+    console.log(
+      "I think I can play through the entire video without ever having to stop to buffer."
+    );
   });
 
-  // The playing event is fired when playback is ready to start
-  // after having been paused or delayed due to lack of data.
-  // video.addEventListener('playing', (event) => {
-  //   console.log('Video is no longer paused');
-  // });
+  video_player.addEventListener("canplay", (event) => {
+    //  video_player.pause();
+    console.log("Video can start, but not sure it will play through.");
+  });
 
   //A new video has been loaded !
-  video.addEventListener('loadstart', (event) => {
-    console.log(this.event);
-    console.log("Has started ");
-    video = document.querySelector('video');
+  video_player.addEventListener("loadstart", (event) => {
+    console.log("loadstart event");
+    console.log(window.location);
+    video_player = document.querySelector("video");
   });
+}
 
-})();
+
+
+
+
+// App Function
+function App() {
+
+  video = document.querySelector("video");
+  console.log(video);
+
+
+  videoEvents(video);
+  socketChatEvents();
+
+
+
+}
