@@ -1,35 +1,48 @@
-const urlSession = "&youtubeParty=";
+const urlSession = "&youtubeRoom=";
 document.addEventListener("DOMContentLoaded", function (event) {
   let turnOn = $("#turnOnTheParty");
   let turnOnText = $("#turnOnThePartyText");
 
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    chrome.storage.local.get(["roomId", "roomUrl"], function (result) {
-      var id = getID(tabs[0].url, urlSession);
-      console.log("id is " + id);
-      if (result.roomId == 0 && id != -1) {
-        chrome.storage.local.set(
-          {
-            roomId: id,
-            roomUrl: tabs[0].url,
-          },
-          () => {
-            console.log("id is:" + id + " and joinRoom on");
-            chrome.tabs.sendMessage(tabs[0].id, { joinRoom: "on", roomId: id });
-            turnOnText.html("Turn OFF the Party");
-            showHtmlPartyInfo(tabs[0].url);
-          }
-        );
-      } else if (result.roomId == 0 || result.roomId == null) {
-        turnOnText.html("Turn On The Party");
-        hideHtmlPartyInfo();
-      } else {
-        console.log(result.roomId);
-        turnOnText.html("Turn OFF the Party");
-        showHtmlPartyInfo(result.roomUrl);
-      }
-    });
+  chrome.tabs.query({
+  active: true,
+  currentWindow: true
+}, function(tabs) {
+  chrome.storage.local.get(["roomId", "roomUrl"], function(result) {
+    var id = getID(tabs[0].url, urlSession);
+    console.log("id is " + id);
+    if (id != -1) {
+      chrome.storage.local.set({
+          roomId: id,
+          roomUrl: tabs[0].url,
+        },
+        () => {
+          console.log("id is:" + id + " and joinRoom on");
+          chrome.tabs.sendMessage(tabs[0].id, {
+            joinRoom: "on",
+            roomId: id
+          });
+          turnOnText.html("Leave the Room");
+          showHtmlPartyInfo(tabs[0].url);
+        }
+      );
+    } else if (result.roomId == 0 || result.roomId == null) {
+      turnOnText.html("Create the Room");
+      hideHtmlPartyInfo();
+    } else {
+      console.log(result.roomId);
+      turnOnText.html("Leave the Room");
+      showHtmlPartyInfo(result.roomUrl);
+      chrome.tabs.sendMessage(
+        tabs[0].id, {
+          alreadyConnected: "on",
+          roomUrl: result.roomId,
+          roomId: result.roomId
+        }
+      );
+    }
   });
+});
+
 
   turnOn.click(function () {
     chrome.storage.local.get(["roomId"], function (result) {
@@ -46,18 +59,23 @@ document.addEventListener("DOMContentLoaded", function (event) {
                 console.warn("Whoops.. " + chrome.runtime.lastError.message);
                 // Maybe explain that to the user too?
               } else {
-                turnOnText.html("Turn OFF The Party");
+                turnOnText.html("Leave the Room");
                 showHtmlPartyInfo(response.url);
               }
             }
           );
         });
       } else {
-        turnOnText.html("Turn On The Party");
+        turnOnText.html("Create the Room");
         chrome.tabs.query({ active: true, currentWindow: true }, function (
           tabs
         ) {
           chrome.tabs.sendMessage(tabs[0].id, { disconnect: "on" });
+          if(getID(tabs[0].url, urlSession) != -1){
+            var urlToRemove = "&youtubeRoom=" + getID(tabs[0].url, urlSession);
+            chrome.tabs.update(tabs[0].id, {url: tabs[0].url.replace(urlToRemove,"")});
+          }
+
         });
 
         hideHtmlPartyInfo();
@@ -98,10 +116,14 @@ function copyBtn() {
     sharingAddress.select();
     sharingAddress.setSelectionRange(0, 99999); /*For mobile devices*/
     document.execCommand("copy");
-    copyBtn.focus();
-    copyBtnText.__uikit__.tooltip.title = "Copied";
+    showHtmlElement("copySuccess");
+    delay(500).then(function(){
+      hideHtmlElement("copySuccess");
+    });
 
-    console.log(copyBtnText);
+
+
+
   });
 }
 
@@ -166,15 +188,15 @@ function hideHtmlPartyInfo() {
 }
 
 function hideHtmlElement(id) {
-  var element = $("#" + id).addClass("uk-hidden");
+  $("#" + id).addClass("uk-hidden");
 }
 
 function showHtmlElement(id) {
-  var element = $("#" + id).removeClass("uk-hidden");
+  $("#" + id).removeClass("uk-hidden");
 }
 
 function editHtmlElementText(id, text) {
-  var element = $("#" + id).text(text);
+  $("#" + id).text(text);
 }
 
 function getChromeStorage() {

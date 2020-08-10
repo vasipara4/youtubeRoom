@@ -22,8 +22,8 @@ socket = io(http);
 
 //setup event listener
 socket.on("connection", (socket) => {
-  var name = "User";
-  socket.player = name;
+  // var name = "User";
+  // socket.player = name;
   console.log(`user ${socket.id} connected`);
 
   socket.on("changeUsername", (data) => {
@@ -37,8 +37,12 @@ socket.on("connection", (socket) => {
   //joining a room
   socket.on("room", (data) => {
     socket.join(data.id, () => {
-      let rooms = Object.keys(socket.rooms);
-      console.log(rooms); // [ <socket.id>, 'room 237' ]
+      var roomID = data.id;
+      socket.player = "User " + socket.adapter.rooms[roomID].length;
+      //console.log(socket.adapter.rooms[roomID].length);
+
+      // let rooms = Object.keys(socket.rooms);
+      // console.log(rooms); // [ <socket.id>, 'room 237' ]
     });
   });
 
@@ -87,10 +91,10 @@ socket.on("connection", (socket) => {
 
   // when someone send a message
   socket.on("chat message", function (data) {
-    //broadcast message to everyone in port:5000 except yourself.
+
     socket.broadcast.to(data.id).emit("received", {
       message: data.message,
-      name: data.name,
+      name: socket.player,
     });
   });
 });

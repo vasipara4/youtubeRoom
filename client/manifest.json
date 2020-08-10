@@ -1,11 +1,11 @@
 {
   "manifest_version": 2,
-  "name": "Youtube Party",
-  "description": "Sync your Youtube video with your friends and chat",
-  "version": "0.0.4",
+  "name": "Youtube Room",
+  "description": "Sync Youtube videos with friends and chat",
+  "version": "0.0.9",
   "page_action": {
     "default_popup": "popup.html",
-    "default_title": "Extension can be activated only on Youtube Videos!"
+    "default_title": "Youtube Room: Play & Chat"
   },
   "background": {
     "scripts": ["background.js"],
@@ -13,17 +13,15 @@
   },
   "options_page": "options.html",
   "icons": {
-    "16": "img/partylogo16.png",
-    "32": "img/partylogo32.png",
-    "48": "img/partylogo48.png",
-    "64": "img/partylogo64.png",
-    "128": "img/partylogo128.png"
+    "16": "img/YR16.png",
+    "32": "img/YR32.png",
+    "48": "img/YR48.png",
+    "64": "img/YR64.png",
+    "128": "img/YR128.png"
   },
   "permissions": [
-    "identity",
     "activeTab",
     "declarativeContent",
-    "webNavigation",
     "https://*.youtube.com/*",
     "storage"
   ],
@@ -34,6 +32,7 @@
     "run_at": "document_idle"
   }],
   "web_accessible_resources": [
-        "img/partylogo32.png"
+        "img/YR32.png",
+        "img/become_a_patron_button.png"
     ]
 }
