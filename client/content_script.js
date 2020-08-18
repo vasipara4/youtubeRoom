@@ -52,7 +52,7 @@ var actionFromServer = false;
 
 
 //____________________________
-// Helpers
+// Helper Functions
 //____________________________
 //
 
@@ -106,9 +106,6 @@ function checkYoutubeURL(rule) {
 }
 
 
-function saveRoomId(user, uniqueKey) {
-
-}
 
 function shareRoomId(user, uniqueKey) {
   var share = urlSession + user + uniqueKey;
@@ -156,6 +153,10 @@ function socketChatEvents() {
       chatAddMessage(data.message, data.name);
     });
 
+    socket.on("newUsername", (data) => {
+      chatAddMessage(data, person.socket);
+    });
+
     socket.on("notifyTyping", () => {
       someoneIsTypingElement(true);
     });
@@ -173,7 +174,7 @@ function socketChatEvents() {
 //____________________________
 //
 
-const person = { me: 0, someone: 1, socket: 2 };
+const person = { me: 0, someone: 1, socket: 2, mySettings: 3 };
 
 
 function scorllLastMessage(){
@@ -212,9 +213,16 @@ function chatAddMessage(messageSent, whoSent) {
     );
     jQuery("#inputMessage").val("");
   } else if (who === person.socket) {
+    message = messageSent.oldUsername + " has changed username to " + messageSent.newUsername;
     chatLog.insertAdjacentHTML(
       "beforeend",
-      insertMessage(message, "", "Info Bot")
+      insertMessage(message, "--bot", "Youtube Room Bot")
+    );
+    console.log(message);
+  } else if (who === person.mySettings) {
+    chatLog.insertAdjacentHTML(
+      "beforeend",
+      insertMessage(message, "--bot", "Youtube Room Bot")
     );
   } else {
     chatLog.insertAdjacentHTML(
@@ -223,6 +231,11 @@ function chatAddMessage(messageSent, whoSent) {
     );
   }
   scorllLastMessage();
+}
+
+
+function chatSocketMessage(messageSent) {
+
 }
 
 function generateChat() {
@@ -258,12 +271,15 @@ function generateChat() {
       //var newusername = (message.startsWith("!newUsername")) ? true : false;
       if(e.which == 13 && message.length >= 13 && message.startsWith("!newUsername ")){
       // TODO: change username
-      var usernameToChange = message.substring(13);
+      var newUsername = message.substring(13);
+      jQuery("#inputMessage").val("");
+      chatAddMessage(`My new Username is: ${newUsername}`, person.mySettings);
       socket.emit("changeUsername", {
-        message: usernameToChange,
+        message: newUsername,
         id: roomId,
         name: userId,
       });
+
       } else if (e.which == 13 && message.length > 0) {
         socket.emit("chat message", {
           message: message,
@@ -272,7 +288,6 @@ function generateChat() {
         });
         chatAddMessage(message, person.me);
       } else if (message.length > 0) socket.emit("typing", { id: roomId });
-    //  else if (message.length == 0) socket.emit("stopTyping", { id: roomId });
     });
 
 
@@ -310,29 +325,6 @@ function visibleChat() {
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   sessionKey = generateSessionKey(urlSessionKeyLength);
   if (request.initializeRoom == "on") {
-    /*
-    if (userId == undefined) {
-      socket = io.connect("https://390211474.linuxzone105.grserver.gr");
-      socket.on("connect", () => {
-        userId = socket.id;
-        var generatedURL = request.url + shareRoomId(userId, sessionKey);
-        generateChat();
-        App();
-        roomId = userId + sessionKey;
-        chrome.storage.local.set({
-          roomId: roomId
-        });
-        chrome.storage.local.set({
-          roomUrl: generatedURL
-        });
-        socket.emit("room", {
-          id: roomId
-        });
-        sendResponse({
-          url: generatedURL,
-        });
-      });
-    } else { */
     var generatedURL = request.url + shareRoomId(userId, sessionKey);
     generateChat();
     App();

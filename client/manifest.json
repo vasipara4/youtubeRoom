@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Youtube Room",
   "description": "Sync Youtube videos with friends and chat",
-  "version": "0.0.9",
+  "version": "0.0.7",
   "page_action": {
     "default_popup": "popup.html",
     "default_title": "Youtube Room: Play & Chat"

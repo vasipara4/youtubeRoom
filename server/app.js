@@ -27,7 +27,12 @@ socket.on("connection", (socket) => {
   console.log(`user ${socket.id} connected`);
 
   socket.on("changeUsername", (data) => {
-    socket.player = data.username;
+    var oldUsername = socket.player;
+    socket.player = data.message;
+    socket.to(data.id).emit("newUsername", {
+      newUsername: socket.player,
+      oldUsername: oldUsername,
+    });
   });
 
   socket.on("disconnect", function () {
